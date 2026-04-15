@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Caption Generator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #f5efe6;
+      color: #2c1a0e;
+      font-family: Georgia, serif;
+      display: flex;
+      justify-content: center;
+      padding: 60px 20px;
+    }
+
+    .card {
+      background-color: #fdf6ee;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 560px;
+      box-shadow: 0 4px 20px rgba(74, 55, 40, 0.1);
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 8px;
+      color: #5c2e0e;
+    }
+
+    p.subtitle {
+      font-size: 0.95rem;
+      color: #5a3a28;
+      margin-bottom: 32px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #3d2010;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #a0765a;
+      border-radius: 10px;
+      background-color: #fff8f2;
+      color: #2c1a0e;
+      font-family: Georgia, serif;
+      font-size: 0.95rem;
+      margin-bottom: 20px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus,
+    select:focus {
+      border-color: #7a3e1a;
+    }
+
+    textarea {
+      height: 110px;
+      resize: vertical;
+    }
+
+    .row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .row > div {
+      flex: 1;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background-color: #7a3e1a;
+      color: #ffffff;
+      border: none;
+      border-radius: 10px;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: #5c2e0e;
+    }
+
+    button:disabled {
+      background-color: #a0765a;
+      cursor: not-allowed;
+    }
+
+    #regenerateBtn {
+      display: none;
+      margin-top: 10px;
+      background-color: #a0765a;
+    }
+
+    #regenerateBtn:hover {
+      background-color: #7a3e1a;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #ffffff88;
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .result {
+      margin-top: 28px;
+      padding: 20px;
+      background-color: #e8d5c0;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #2c1a0e;
+      display: none;
+    }
+
+    .result.error {
+      background-color: #f5ddd8;
+      color: #6b1a10;
+    }
+
+    #copyBtn {
+      display: none;
+      margin-top: 10px;
+      background-color: #5a3a28;
+      font-size: 0.9rem;
+      padding: 10px;
+    }
+
+    #copyBtn:hover {
+      background-color: #3d2010;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Caption Generator</h1>
+    <p class="subtitle">Describe your photo and get a social media caption.</p>
+
+    <label for="description">Description</label>
+    <textarea id="description" placeholder="e.g. a golden retriever playing in autumn leaves" oninput="resetButtons()"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="tone">Tone</label>
+        <select id="tone" onchange="resetButtons()">
+          <option value="playful">Playful</option>
+          <option value="cozy">Cozy</option>
+          <option value="inspirational">Inspirational</option>
+          <option value="funny">Funny</option>
+          <option value="dreamy">Dreamy</option>
+          <option value="professional">Professional</option>
+        </select>
+      </div>
+      <div>
+        <label for="model">Model</label>
+        <select id="model" onchange="resetButtons()">
+          <option value="ollama">Ollama</option>
+          <option value="gemini">Gemini</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="generateBtn" onclick="generateCaption()">Generate Caption</button>
+    <button id="regenerateBtn" onclick="generateCaption()">Regenerate</button>
+    <button id="copyBtn" onclick="copyCaption()">Copy Caption</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    function friendlyError(error) {
+      if (!error) return 'Something went wrong.';
+      if (error.includes('quota') || error.includes('429') || error.includes('RESOURCE_EXHAUSTED'))
+        return 'Gemini rate limit reached. Wait a moment and try again.';
+      if (error.includes('Ollama request failed') || error.includes('Is Ollama running'))
+        return 'Could not reach Ollama. Make sure it is running with: ollama serve';
+      if (error.includes('GEMINI_API_KEY'))
+        return 'Gemini API key is missing. Add it to your .env file.';
+      return error;
+    }
+
+    function resetButtons() {
+      document.getElementById('regenerateBtn').style.display = 'none';
+      document.getElementById('copyBtn').style.display = 'none';
+      document.getElementById('result').style.display = 'none';
+    }
+
+    async function generateCaption() {
+      const description = document.getElementById('description').value.trim();
+      const tone = document.getElementById('tone').value;
+      const model = document.getElementById('model').value;
+      const resultEl = document.getElementById('result');
+      const btn = document.getElementById('generateBtn');
+      const regenBtn = document.getElementById('regenerateBtn');
+
+      if (!description) {
+        showResult('Please enter a description.', true);
+        return;
+      }
+
+      btn.disabled = true;
+      regenBtn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Generating...';
+      resultEl.style.display = 'none';
+      document.getElementById('copyBtn').style.display = 'none';
+
+      try {
+        const response = await fetch('http://localhost:3000/generate-caption', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description, tone, model }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showResult(friendlyError(data.error), true);
+        } else {
+          showResult(data.caption, false);
+          document.getElementById('copyBtn').style.display = 'block';
+        }
+      } catch (err) {
+        showResult('Could not reach the server. Is it running?', true);
+      } finally {
+        btn.disabled = false;
+        regenBtn.disabled = false;
+        btn.textContent = 'Generate Caption';
+        regenBtn.style.display = 'block';
+      }
+    }
+
+    function showResult(message, isError) {
+      const resultEl = document.getElementById('result');
+      resultEl.textContent = message;
+      resultEl.className = 'result' + (isError ? ' error' : '');
+      resultEl.style.display = 'block';
+    }
+
+    function copyCaption() {
+      const text = document.getElementById('result').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy Caption', 2000);
+      });
+    }
+  </script>
+</body>
+</html>
