@@ -11,9 +11,10 @@ The two API services I used where Ollama and Google Gemini API for caption gener
 
 ## How do you run it ##
 Ollama only runs locally as it is just the free service. Ollama will not work when deployed.
+
 To run locally:
 1. Install dependencies - npm install
-2. Set up your environmental variables in your `.env` file. With your Gemini API key.
+2. Set up your environmental variables in your `.env` file. With your Gemini API key
 3. Start the server - node server.js
 4. The server is now running on `http://localhost:3000`
 5. Run Ollama - `ollama run llama3.2` (Ollama must be installed first)
