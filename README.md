@@ -18,4 +18,4 @@ To run locally:
 4. The server is now running on `http://localhost:3000`
 5. Run Ollama - `ollama run llama3.2` (Ollama must be installed first)
 6. Everything should now be up and running on the localhost
-7. To view the frontend now open the 'index.html' file in your browser
+7. To view the frontend now open the `index.html` file in your browser
